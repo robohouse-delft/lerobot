@@ -7,8 +7,7 @@ from pyparsing import Any
 from rtde_control import RTDEControlInterface as RTDEControl
 from scipy.spatial.transform import Rotation
 
-from lerobot.cameras import CameraConfig, make_cameras_from_configs
-from lerobot.cameras.realsense import RealSenseCameraConfig
+from lerobot.cameras import make_cameras_from_configs
 from lerobot.robots import Robot
 
 from .config_ur import URConfig
@@ -30,23 +29,7 @@ class UR(Robot):
         self.config = config
         self.outside_workspace_limits = False
         self.gripper = RobotiqGripper()
-        cameras_dict: dict[str, CameraConfig] = {
-            "wrist.rgb": RealSenseCameraConfig(
-                serial_number_or_name="218622274553",
-                color_mode="rgb",
-                fps=30,
-                width=640,
-                height=480,
-            ),
-            "base.rgb": RealSenseCameraConfig(
-                serial_number_or_name="916512060630",
-                color_mode="rgb",
-                fps=30,
-                width=640,
-                height=480,
-            ),
-        }
-        self.cameras = make_cameras_from_configs(cameras_dict)
+        self.cameras = make_cameras_from_configs(config.cameras)
 
     def connect(self, calibrate: bool = True) -> None:
         try:
