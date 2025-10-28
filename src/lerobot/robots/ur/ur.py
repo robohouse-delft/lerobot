@@ -118,7 +118,6 @@ class UR(Robot):
             pose[:3] = self.prev_pos + (direction * self.max_translation_delta_m).tolist()
             print("TCP pose is too far from current pose. Clipped translation to:", pose[:3])
 
-        print("Commanding pose:", pose)
         t_start = self.robot.initPeriod()
         self.robot.servoL(pose, velocity, acceleration, dt, lookahead_time, gain)
         gripper_pos = action_vals[-1] * 255
