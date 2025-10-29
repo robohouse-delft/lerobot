@@ -76,12 +76,14 @@ from lerobot.robots import (  # noqa: F401
     make_robot_from_config,
     so100_follower,
     so101_follower,
+    ur,
 )
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
     TeleoperatorConfig,
     bi_so100_leader,
     gamepad,
+    gello,
     homunculus,
     koch_leader,
     make_teleoperator_from_config,
