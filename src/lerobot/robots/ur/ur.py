@@ -77,10 +77,10 @@ class UR(Robot):
 
         obs_dict = {}
         # Read arm state
-        state_vector = np.append(self._get_pose_state(), [self._get_gripper_pos()])
-        # obs_dict["state"] = {}
-        for i, v in enumerate(state_vector):
-            obs_dict[f"s{i}"] = v
+        pose_vector = self._get_pose_state()
+        for i, v in enumerate(pose_vector):
+            obs_dict[f"pose_{i}"] = v
+        obs_dict["gripper"] = self._get_gripper_pos()
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():
             obs_dict[cam_key] = cam.async_read()
@@ -95,8 +95,19 @@ class UR(Robot):
         gain = 100
 
         action_vals = [val for _, val in action.items()]
-        # Assume action is already in end-effector pose format [x, y, z, rot_x, rot_y, rot_z, rot_w, gripper]
-        pose = action_vals[0:3] + Rotation.from_quat(action_vals[3:7]).as_rotvec().tolist()
+        if "joint" in list(action.keys())[0]:
+            # Convert joint space to end-effector pose
+            robot_joints = action_vals[:6]
+            try:
+                pose = self.robot.getForwardKinematics(robot_joints, self.tcp_offset)
+            except RuntimeError as e:
+                print(e)
+                return None
+        elif "pose" in list(action.keys())[0]:
+            # Action is already in end-effector pose format [x, y, z, rot_w, rot_x, rot_y, rot_z]
+            pose = action[0:3].tolist() + Rotation.from_quat(action[3:7]).as_rotvec().tolist()
+        else:
+            raise ValueError("Invalid state length")
 
         # Check limits end-effector workspace limits before commanding the robot
         if not self._check_limits(pose):
@@ -128,21 +139,24 @@ class UR(Robot):
         corrected_quat = self._convert_rotvec_to_quat(np.array(pose[3:6]))
         self.prev_pos = pose[:3]
 
-        committed_action = [pose[:3] + corrected_quat.tolist() + [action_vals[-1]]]
+        committed_pose_action = pose[:3] + corrected_quat.tolist()
+        committed_action = {f"pose_{i}": v for i, v in enumerate(committed_pose_action)}
+        committed_action["gripper"] = action_vals[-1]
 
-        return {f"s{i}": v for i, v in enumerate(committed_action)}
+        return committed_action
 
     @property
     def _motors_ft(self) -> dict[str, type]:
+        # TODO: Maybe use a better name?
         return {
-            "s0": float,
-            "s1": float,
-            "s2": float,
-            "s3": float,
-            "s4": float,
-            "s5": float,
-            "s6": float,
-            "s7": float,
+            "pose_0": float,
+            "pose_1": float,
+            "pose_2": float,
+            "pose_3": float,
+            "pose_4": float,
+            "pose_5": float,
+            "pose_6": float,
+            "gripper": float,
         }
 
     @property

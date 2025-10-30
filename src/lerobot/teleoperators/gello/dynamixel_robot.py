@@ -37,6 +37,7 @@ class DynamixelRobot:
                 gripper_config[1] * np.pi / 180,
                 gripper_config[2] * np.pi / 180,
             )
+            self._start_joints = np.append(self._start_joints, [0.0])
         else:
             self.gripper_open_close = None
 
@@ -81,25 +82,24 @@ class DynamixelRobot:
         self._connected = True
 
     def configure(self):
-        if self._start_joints is not None:
-            # loop through all joints and add +- 2pi to the joint offsets to get the closest to start joints
-            self._start_joints = np.asarray(self._start_joints)
-            new_joint_offsets = []
-            current_joints = self.get_joint_state()
-            assert current_joints.shape == self._start_joints.shape
-            if self.gripper_open_close is not None:
-                current_joints = current_joints[:-1]
-                self._start_joints = self._start_joints[:-1]
-            for idx, (c_joint, s_joint, joint_offset) in enumerate(
-                zip(current_joints, self._start_joints, self._joint_offsets, strict=False)
-            ):
-                new_joint_offsets.append(
-                    np.pi * 2 * np.round((-s_joint + c_joint) / (2 * np.pi)) * self._joint_signs[idx]
-                    + joint_offset
-                )
-            if self.gripper_open_close is not None:
-                new_joint_offsets.append(self._joint_offsets[-1])
-            self._joint_offsets = np.array(new_joint_offsets)
+        # loop through all joints and add +- 2pi to the joint offsets to get the closest to start joints
+        self._start_joints = np.asarray(self._start_joints)
+        new_joint_offsets = []
+        current_joints = self.get_joint_state()
+        assert current_joints.shape == self._start_joints.shape
+        if self.gripper_open_close is not None:
+            current_joints = current_joints[:-1]
+            self._start_joints = self._start_joints[:-1]
+        for idx, (c_joint, s_joint, joint_offset) in enumerate(
+            zip(current_joints, self._start_joints, self._joint_offsets, strict=False)
+        ):
+            new_joint_offsets.append(
+                np.pi * 2 * np.round((-s_joint + c_joint) / (2 * np.pi)) * self._joint_signs[idx]
+                + joint_offset
+            )
+        if self.gripper_open_close is not None:
+            new_joint_offsets.append(self._joint_offsets[-1])
+        self._joint_offsets = np.array(new_joint_offsets)
 
     def disconnect(self):
         self._driver.close()

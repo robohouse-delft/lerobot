@@ -1,6 +1,8 @@
 import logging
 import time
 
+import numpy as np
+
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
 from ..teleoperator import Teleoperator
@@ -24,12 +26,12 @@ class Gello(Teleoperator):
         super().__init__(config)
         self.config = config
         self.bus = DynamixelRobot(
-            joint_ids=config.joint_ids,
+            joint_ids=[1, 2, 3, 4, 5, 6],
             joint_offsets=config.joint_offsets,
-            joint_signs=config.joint_signs,
+            joint_signs=[1, 1, -1, 1, 1, 1],
             port=config.port,
             gripper_config=config.gripper_config,
-            start_joints=config.start_joints,
+            start_joints=np.deg2rad(config.start_joints_deg),
         )
 
     @property
