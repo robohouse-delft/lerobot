@@ -94,6 +94,10 @@ class UR(Robot):
         lookahead_time = 0.2
         gain = 100
 
+        if self.r_inter.isProtectiveStopped() or self.r_inter.isEmergencyStopped():
+            print("Error: Robot is in either a protective stop or emergency stop state")
+            return None
+
         action_vals = [val for _, val in action.items()]
         if "joint" in list(action.keys())[0]:
             # Convert joint space to end-effector pose
@@ -113,7 +117,7 @@ class UR(Robot):
         if not self._check_limits(pose):
             if not self.outside_workspace_limits:
                 print(
-                    "Robot end-effector has been commanded to be outside of the workspace limits. Move leader arm back to within workspace."
+                    "Error: Robot end-effector has been commanded to be outside of the workspace limits. Move leader arm back to within workspace."
                 )
             self.outside_workspace_limits = True
             return None
@@ -127,7 +131,7 @@ class UR(Robot):
         if np.linalg.norm(pos_diff) > self.max_translation_delta_m:
             direction = pos_diff / np.linalg.norm(pos_diff)
             pose[:3] = self.prev_pos + (direction * self.max_translation_delta_m).tolist()
-            print("TCP pose is too far from current pose. Clipped translation to:", pose[:3])
+            print("Warning: TCP pose is too far from current pose. Clipped translation to:", pose[:3])
 
         t_start = self.robot.initPeriod()
         self.robot.servoL(pose, velocity, acceleration, dt, lookahead_time, gain)
