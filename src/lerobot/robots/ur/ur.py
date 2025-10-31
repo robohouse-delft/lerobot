@@ -105,7 +105,7 @@ class UR(Robot):
                 return None
         elif "pose" in list(action.keys())[0]:
             # Action is already in end-effector pose format [x, y, z, rot_w, rot_x, rot_y, rot_z]
-            pose = action[0:3].tolist() + Rotation.from_quat(action[3:7]).as_rotvec().tolist()
+            pose = action_vals[0:3] + Rotation.from_quat(action_vals[3:7]).as_rotvec().tolist()
         else:
             raise ValueError("Invalid state length")
 
