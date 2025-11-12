@@ -77,11 +77,12 @@ from lerobot.robots import (  # noqa: F401
     so100_follower,
     so101_follower,
     ur,
+    abb,
 )
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
     TeleoperatorConfig,
-    bi_so100_leader,
+    bi_so100_leader,    
     gamepad,
     gello,
     homunculus,
@@ -89,6 +90,7 @@ from lerobot.teleoperators import (  # noqa: F401
     make_teleoperator_from_config,
     so100_leader,
     so101_leader,
+    keyboard,
 )
 from lerobot.utils.import_utils import register_third_party_devices
 from lerobot.utils.robot_utils import busy_wait

@@ -57,6 +57,7 @@ from lerobot.robots import (  # noqa: F401
     so100_follower,
     so101_follower,
     ur,
+    abb
 )
 from lerobot.transport import (
     services_pb2,  # type: ignore

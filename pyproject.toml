@@ -115,6 +115,7 @@ intelrealsense = [
 ]
 phone = ["hebi-py>=2.8.0,<2.12.0", "teleop>=0.1.0,<0.2.0", "fastapi<1.0"]
 ur = ["ur-rtde>=1.6.2"]
+abb = ["ABBRobotEGM>=1.0.4"]
 
 # Policies
 pi = ["transformers @ git+https://github.com/huggingface/transformers.git@fix/lerobot_openpi"]
@@ -169,6 +170,7 @@ all = [
     "lerobot[libero]",
     "lerobot[metaworld]",
     "lerobot[ur]",
+    "lerobot[abb]",
 ]
 
 [project.scripts]
