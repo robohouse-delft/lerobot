@@ -81,19 +81,14 @@ class ABB(Robot):
             delta_x = action.pop("delta_x")
             delta_y = action.pop("delta_y")
             delta_z = action.pop("delta_z")
-            position_magnitude = (
-                delta_x**2 + delta_y**2 + delta_z**2
-            ) ** 0.5  # Use Euclidean norm for position
-            if position_magnitude < 1e-3:  # Small threshold to avoid noise
-                return None
             pose = [
-                state.cartesian.pos.x + delta_x,
-                state.cartesian.pos.y + delta_y,
-                state.cartesian.pos.z + delta_z,
+                state.cartesian.pos.x + delta_x * 10.0,
+                state.cartesian.pos.y + delta_y * 10.0,
+                state.cartesian.pos.z + delta_z * 10.0,
+                state.cartesian.orient.u0,
                 state.cartesian.orient.u1,
                 state.cartesian.orient.u2,
                 state.cartesian.orient.u3,
-                state.cartesian.orient.u0,
             ]
         elif "pose" in list(action.keys())[0]:
             # Action is already in end-effector pose format [x, y, z, rot_x, rot_y, rot_z, rot_w]

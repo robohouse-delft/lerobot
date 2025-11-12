@@ -103,11 +103,14 @@ class KeyboardTeleop(Teleoperator):
 
     def _on_press(self, key):
         if hasattr(key, "char"):
-            self.event_queue.put((key.char, True))
+            key = key.char
+        self.event_queue.put((key, True))
 
     def _on_release(self, key):
         if hasattr(key, "char"):
-            self.event_queue.put((key.char, False))
+            key = key.char
+        self.event_queue.put((key, False))
+
         if key == keyboard.Key.esc:
             logging.info("ESC pressed, disconnecting.")
             self.disconnect()
