@@ -7,3 +7,4 @@ from lerobot.robots import RobotConfig
 @dataclass
 class ABBConfig(RobotConfig):
     state_feedback_hz: float
+    port: int

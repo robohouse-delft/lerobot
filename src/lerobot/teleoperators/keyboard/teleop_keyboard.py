@@ -25,7 +25,7 @@ from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnected
 
 from ..teleoperator import Teleoperator
 from ..utils import TeleopEvents
-from .configuration_keyboard import KeyboardEndEffectorTeleopConfig, KeyboardTeleopConfig
+from .configuration_keyboard import BiKeyboardEndEffectorTeleopConfig, KeyboardEndEffectorTeleopConfig, KeyboardTeleopConfig
 
 PYNPUT_AVAILABLE = True
 try:
@@ -41,6 +41,25 @@ except Exception as e:
     keyboard = None
     PYNPUT_AVAILABLE = False
     logging.info(f"Could not import pynput: {e}")
+
+
+def str_to_key(key_str):
+    """
+    Convert a string representation of a key to a pynput.keyboard.Key
+    enumeration if it exists; otherwise, return the character as-is.
+    """
+    # Try to get from special keys (e.g. 'up', 'down', 'ctrl', etc.)
+    try:
+        return getattr(keyboard.Key, key_str)
+    except AttributeError:
+        # Not a special key, assume it’s a single character key
+        if len(key_str) == 1:
+            return keyboard.KeyCode.from_char(key_str)
+        else:
+            raise ValueError(f"Unknown key: {key_str}")
+
+def is_reserved_key(key_pair: tuple[str, str]):
+    return 's' in key_pair or 'q' in key_pair or 'r' in key_pair
 
 
 class KeyboardTeleop(Teleoperator):
@@ -102,13 +121,9 @@ class KeyboardTeleop(Teleoperator):
         pass
 
     def _on_press(self, key):
-        if hasattr(key, "char"):
-            key = key.char
         self.event_queue.put((key, True))
 
     def _on_release(self, key):
-        if hasattr(key, "char"):
-            key = key.char
         self.event_queue.put((key, False))
 
         if key == keyboard.Key.esc:
@@ -164,6 +179,8 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
         super().__init__(config)
         self.config = config
         self.misc_keys_queue = Queue()
+        if is_reserved_key(self.config.delta_x_keys) or is_reserved_key(self.config.delta_y_keys) or is_reserved_key(self.config.delta_z_keys) or is_reserved_key(self.config.gripper_keys):
+            raise ValueError("Cannot listen for control action on reserved keys: ('s', 'q', 'r')")
 
     @property
     def action_features(self) -> dict:
@@ -194,22 +211,22 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
 
         # Generate action based on current key states
         for key, val in self.current_pressed.items():
-            if key == keyboard.Key.up:
+            if key == str_to_key(self.config.delta_y_keys[0]):
                 delta_y = -int(val)
-            elif key == keyboard.Key.down:
+            elif key == str_to_key(self.config.delta_y_keys[1]):
                 delta_y = int(val)
-            elif key == keyboard.Key.left:
+            elif key == str_to_key(self.config.delta_x_keys[0]):
                 delta_x = int(val)
-            elif key == keyboard.Key.right:
+            elif key == str_to_key(self.config.delta_x_keys[1]):
                 delta_x = -int(val)
-            elif key == keyboard.Key.shift:
+            elif key == str_to_key(self.config.delta_z_keys[0]):
                 delta_z = -int(val)
-            elif key == keyboard.Key.shift_r:
+            elif key == str_to_key(self.config.delta_z_keys[1]):
                 delta_z = int(val)
-            elif key == keyboard.Key.ctrl_r:
+            elif key == str_to_key(self.config.gripper_keys[1]):
                 # Gripper actions are expected to be between 0 (close), 1 (stay), 2 (open)
                 gripper_action = int(val) + 1
-            elif key == keyboard.Key.ctrl_l:
+            elif key == str_to_key(self.config.gripper_keys[0]):
                 gripper_action = int(val) - 1
             elif val:
                 # If the key is pressed, add it to the misc_keys_queue
@@ -258,14 +275,14 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
 
         # Check if any movement keys are currently pressed (indicates intervention)
         movement_keys = [
-            keyboard.Key.up,
-            keyboard.Key.down,
-            keyboard.Key.left,
-            keyboard.Key.right,
-            keyboard.Key.shift,
-            keyboard.Key.shift_r,
-            keyboard.Key.ctrl_r,
-            keyboard.Key.ctrl_l,
+            str_to_key(self.config.delta_y_keys[0]),
+            str_to_key(self.config.delta_y_keys[1]),
+            str_to_key(self.config.delta_x_keys[0]),
+            str_to_key(self.config.delta_x_keys[1]),
+            str_to_key(self.config.delta_z_keys[0]),
+            str_to_key(self.config.delta_z_keys[1]),
+            str_to_key(self.config.gripper_keys[0]),
+            str_to_key(self.config.gripper_keys[0]),
         ]
         is_intervention = any(self.current_pressed.get(key, False) for key in movement_keys)
 
@@ -277,12 +294,190 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
         # Process any pending misc keys
         while not self.misc_keys_queue.empty():
             key = self.misc_keys_queue.get_nowait()
-            if key == "s":
+            if key == str_to_key("s"):
                 success = True
-            elif key == "r":
+            elif key == str_to_key("r"):
                 terminate_episode = True
                 rerecord_episode = True
-            elif key == "q":
+            elif key == str_to_key("q"):
+                terminate_episode = True
+                success = False
+
+        return {
+            TeleopEvents.IS_INTERVENTION: is_intervention,
+            TeleopEvents.TERMINATE_EPISODE: terminate_episode,
+            TeleopEvents.SUCCESS: success,
+            TeleopEvents.RERECORD_EPISODE: rerecord_episode,
+        }
+
+class BiKeyboardEndEffectorTeleop(KeyboardTeleop):
+    """
+    Teleop class to use keyboard inputs for end effector control of a dual arm manipulator.
+    """
+
+    config_class = BiKeyboardEndEffectorTeleopConfig
+    name = "bi_keyboard_ee"
+
+    def __init__(self, config: BiKeyboardEndEffectorTeleopConfig):
+        super().__init__(config)
+        self.config = config
+        self.misc_keys_queue = Queue()
+        if is_reserved_key(self.config.left_delta_x_keys) or is_reserved_key(self.config.left_delta_y_keys) or is_reserved_key(self.config.left_delta_z_keys) or is_reserved_key(self.config.left_gripper_keys):
+            raise ValueError("Cannot listen for control action on reserved keys: ('s', 'q', 'r')")
+        if is_reserved_key(self.config.right_delta_x_keys) or is_reserved_key(self.config.right_delta_y_keys) or is_reserved_key(self.config.right_delta_z_keys) or is_reserved_key(self.config.right_gripper_keys):
+            raise ValueError("Cannot listen for control action on reserved keys: ('s', 'q', 'r')")
+
+    @property
+    def action_features(self) -> dict:
+        if self.config.use_gripper:
+            return {
+                "dtype": "float32",
+                "shape": (8,),
+                "names": {"left_delta_x": 0, "left_delta_y": 1, "left_delta_z": 2, "left_gripper": 3, "right_delta_x": 4, "right_delta_y": 5, "right_delta_z": 6, "right_gripper": 7},
+            }
+        else:
+            return {
+                "dtype": "float32",
+                "shape": (6,),
+                "names": {"left_delta_x": 0, "left_delta_y": 1, "left_delta_z": 2, "right_delta_x": 3, "right_delta_y": 4, "right_delta_z": 5},
+            }
+
+    def get_action(self) -> dict[str, Any]:
+        if not self.is_connected:
+            raise DeviceNotConnectedError(
+                "KeyboardTeleop is not connected. You need to run `connect()` before `get_action()`."
+            )
+
+        self._drain_pressed_keys()
+        left_delta_x = 0.0
+        left_delta_y = 0.0
+        left_delta_z = 0.0
+        left_gripper_action = 1.0
+        right_delta_x = 0.0
+        right_delta_y = 0.0
+        right_delta_z = 0.0
+        right_gripper_action = 1.0
+
+        # Generate action based on current key states
+        for key, val in self.current_pressed.items():
+            if key == str_to_key(self.config.left_delta_y_keys[0]):
+                left_delta_y = -int(val)
+            elif key == str_to_key(self.config.left_delta_y_keys[1]):
+                left_delta_y = int(val)
+            if key == str_to_key(self.config.right_delta_y_keys[0]):
+                right_delta_y = -int(val)
+            elif key == str_to_key(self.config.right_delta_y_keys[1]):
+                right_delta_y = int(val)
+            elif key == str_to_key(self.config.left_delta_x_keys[0]):
+                left_delta_x = int(val)
+            elif key == str_to_key(self.config.left_delta_x_keys[1]):
+                left_delta_x = -int(val)
+            elif key == str_to_key(self.config.right_delta_x_keys[0]):
+                right_delta_x = int(val)
+            elif key == str_to_key(self.config.right_delta_x_keys[1]):
+                right_delta_x = -int(val)
+            elif key == str_to_key(self.config.left_delta_z_keys[0]):
+                left_delta_z = -int(val)
+            elif key == str_to_key(self.config.left_delta_z_keys[1]):
+                left_delta_z = int(val)
+            elif key == str_to_key(self.config.right_delta_z_keys[0]):
+                right_delta_z = -int(val)
+            elif key == str_to_key(self.config.right_delta_z_keys[1]):
+                right_delta_z = int(val)
+            elif key == str_to_key(self.config.left_gripper_keys[1]):
+                # Gripper actions are expected to be between 0 (close), 1 (stay), 2 (open)
+                left_gripper_action = int(val) + 1
+            elif key == str_to_key(self.config.left_gripper_keys[0]):
+                left_gripper_action = int(val) - 1
+            elif key == str_to_key(self.config.right_gripper_keys[1]):
+                # Gripper actions are expected to be between 0 (close), 1 (stay), 2 (open)
+                right_gripper_action = int(val) + 1
+            elif key == str_to_key(self.config.right_gripper_keys[0]):
+                right_gripper_action = int(val) - 1
+            elif val:
+                # If the key is pressed, add it to the misc_keys_queue
+                # this will record key presses that are not part of the delta_x, delta_y, delta_z
+                # this is useful for retrieving other events like interventions for RL, episode success, etc.
+                self.misc_keys_queue.put(key)
+
+        self.current_pressed.clear()
+
+        action_dict = {
+            "left_delta_x": left_delta_x,
+            "left_delta_y": left_delta_y,
+            "left_delta_z": left_delta_z,
+            "right_delta_x": right_delta_x,
+            "right_delta_y": right_delta_y,
+            "right_delta_z": right_delta_z,
+        }
+
+        if self.config.use_gripper:
+            action_dict["left_gripper"] = left_gripper_action
+            action_dict["right_gripper"] = right_gripper_action
+
+        return action_dict
+
+    def get_teleop_events(self) -> dict[str, Any]:
+        """
+        Get extra control events from the keyboard such as intervention status,
+        episode termination, success indicators, etc.
+
+        Keyboard mappings:
+        - Any movement keys pressed = intervention active
+        - 's' key = success (terminate episode successfully)
+        - 'r' key = rerecord episode (terminate and rerecord)
+        - 'q' key = quit episode (terminate without success)
+
+        Returns:
+            Dictionary containing:
+                - is_intervention: bool - Whether human is currently intervening
+                - terminate_episode: bool - Whether to terminate the current episode
+                - success: bool - Whether the episode was successful
+                - rerecord_episode: bool - Whether to rerecord the episode
+        """
+        if not self.is_connected:
+            return {
+                TeleopEvents.IS_INTERVENTION: False,
+                TeleopEvents.TERMINATE_EPISODE: False,
+                TeleopEvents.SUCCESS: False,
+                TeleopEvents.RERECORD_EPISODE: False,
+            }
+
+        # Check if any movement keys are currently pressed (indicates intervention)
+        movement_keys = [
+            str_to_key(self.config.left_delta_y_keys[0]),
+            str_to_key(self.config.left_delta_y_keys[1]),
+            str_to_key(self.config.right_delta_y_keys[0]),
+            str_to_key(self.config.right_delta_y_keys[1]),
+            str_to_key(self.config.left_delta_x_keys[0]),
+            str_to_key(self.config.left_delta_x_keys[1]),
+            str_to_key(self.config.right_delta_x_keys[0]),
+            str_to_key(self.config.right_delta_x_keys[1]),
+            str_to_key(self.config.left_delta_z_keys[0]),
+            str_to_key(self.config.left_delta_z_keys[1]),
+            str_to_key(self.config.right_delta_z_keys[0]),
+            str_to_key(self.config.right_delta_z_keys[1]),
+            str_to_key(self.config.left_gripper_keys[0]),
+            str_to_key(self.config.left_gripper_keys[0]),
+            str_to_key(self.config.right_gripper_keys[0]),
+            str_to_key(self.config.right_gripper_keys[0]),
+        ]
+        is_intervention = any(self.current_pressed.get(key, False) for key in movement_keys)
+
+        # Check for episode control commands from misc_keys_queue
+        terminate_episode = False
+        success = False
+        rerecord_episode = False
+
+        # Process any pending misc keys
+        while not self.misc_keys_queue.empty():
+            key = self.misc_keys_queue.get_nowait()
+            if key == str_to_key("s"):
+                success = True
+            elif key == str_to_key("r"):
+                terminate_episode = True
+                rerecord_episode = True
+            elif key == str_to_key("q"):
                 terminate_episode = True
                 success = False
 

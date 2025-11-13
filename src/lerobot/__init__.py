@@ -167,7 +167,8 @@ available_robots = [
     "so100",
     "so101",
     "ur",
-    "abb"
+    "abb",
+    "abb_dual_arm",
 ]
 
 # lists all available cameras from `lerobot/cameras`

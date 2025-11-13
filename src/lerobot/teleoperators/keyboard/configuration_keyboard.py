@@ -31,3 +31,22 @@ class KeyboardTeleopConfig(TeleoperatorConfig):
 @dataclass
 class KeyboardEndEffectorTeleopConfig(KeyboardTeleopConfig):
     use_gripper: bool = True
+    delta_x_keys: tuple[str, str] = ("up", "down")
+    delta_y_keys: tuple[str, str] = ("left", "right")
+    delta_z_keys: tuple[str, str] = ("shift", "shift_r")
+    gripper_keys: tuple[str, str] = ("ctrl_l", "ctrl_r")
+
+@TeleoperatorConfig.register_subclass("bi_keyboard_ee")
+@dataclass
+class BiKeyboardEndEffectorTeleopConfig(KeyboardTeleopConfig):
+    use_gripper: bool = True
+    # Left arm controls
+    left_delta_x_keys: tuple[str, str] = ("up", "down")
+    left_delta_y_keys: tuple[str, str] = ("left", "right")
+    left_delta_z_keys: tuple[str, str] = ("shift", "shift_r")
+    left_gripper_keys: tuple[str, str] = ("ctrl_l", "ctrl_r")
+    # Right arm controls
+    right_delta_x_keys: tuple[str, str] = ("y", "h")
+    right_delta_y_keys: tuple[str, str] = ("g", "j")
+    right_delta_z_keys: tuple[str, str] = ("t", "u")
+    right_gripper_keys: tuple[str, str] = ("z", "x")

@@ -27,11 +27,10 @@ class ABB(Robot):
 
     def connect(self, calibrate: bool = True) -> None:
         try:
-            self.robot = EGM()
+            self.robot = EGM(port=self.config.port)
             print(f"Connected to EGM server at {self.robot.egm_addr}")
         except Exception as e:
             print(e)
-            print(self.config.ip_address)
             raise ConnectionError(e)  # noqa: B904
 
         self.configure()
@@ -41,8 +40,9 @@ class ABB(Robot):
 
     def configure(self) -> None:
         self._flush_robot_msgs()
-        success, state = self.robot.receive_from_robot(timeout=0.02)
+        success, state = self.robot.receive_from_robot(timeout=0.1)
         if success:
+            print(f"Current robot pose: {state.cartesian}")
             self.prev_rot = Rotation.from_quat([state.cartesian.orient.u1, state.cartesian.orient.u2, state.cartesian.orient.u3, state.cartesian.orient.u0])
             self.prev_pos = np.array([state.cartesian.pos.x, state.cartesian.pos.y, state.cartesian.pos.z])
         else:
@@ -72,7 +72,7 @@ class ABB(Robot):
         dt = 1.0 / self.config.state_feedback_hz
 
         self._flush_robot_msgs()
-        success, state = self.robot.receive_from_robot(timeout=0.02)
+        success, state = self.robot.receive_from_robot()
         if not success:
             raise RuntimeError("Robot problem!")
 

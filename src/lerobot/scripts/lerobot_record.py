@@ -99,7 +99,8 @@ from lerobot.robots import (  # noqa: F401
     so100_follower,
     so101_follower,
     ur,
-    abb
+    abb,
+    abb_dual_arm,
 )
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,

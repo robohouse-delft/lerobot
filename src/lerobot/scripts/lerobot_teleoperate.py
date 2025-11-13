@@ -78,6 +78,7 @@ from lerobot.robots import (  # noqa: F401
     so101_follower,
     ur,
     abb,
+    abb_dual_arm,
 )
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
