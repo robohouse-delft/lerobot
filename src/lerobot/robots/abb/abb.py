@@ -17,6 +17,7 @@ class ABB(Robot):
 
     def __init__(self, config: ABBConfig):
         super().__init__(config)
+        # TODO: need to update these from configuration probably
         self.x_limits: list[float] = [-1.0, 1.0]
         self.y_limits: list[float] = [-0.4, 0.6]
         self.z_limits: list[float] = [0.0, 1.5]
@@ -43,7 +44,14 @@ class ABB(Robot):
         success, state = self.robot.receive_from_robot(timeout=0.1)
         if success:
             print(f"Current robot pose: {state.cartesian}")
-            self.prev_rot = Rotation.from_quat([state.cartesian.orient.u1, state.cartesian.orient.u2, state.cartesian.orient.u3, state.cartesian.orient.u0])
+            self.prev_rot = Rotation.from_quat(
+                [
+                    state.cartesian.orient.u1,
+                    state.cartesian.orient.u2,
+                    state.cartesian.orient.u3,
+                    state.cartesian.orient.u0,
+                ]
+            )
             self.prev_pos = np.array([state.cartesian.pos.x, state.cartesian.pos.y, state.cartesian.pos.z])
         else:
             raise RuntimeError("Robot problem!")

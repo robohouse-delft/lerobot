@@ -1,15 +1,11 @@
-import time
 from functools import cached_property
 
-import numpy as np
-from ABBRobotEGM import EGM
 from pyparsing import Any
-from scipy.spatial.transform import Rotation
 
 from lerobot.robots import Robot
-
 from lerobot.robots.abb import ABB
 from lerobot.robots.abb.config_abb import ABBConfig
+
 from .config_abb_dual_arm import ABBDualArmConfig
 
 
@@ -56,7 +52,7 @@ class ABBDualArm(Robot):
             raise ConnectionError(f"{self} is not connected.")
 
         obs_dict = {}
-         # Add "left_" prefix
+        # Add "left_" prefix
         left_obs = self.left_arm.get_observation()
         obs_dict.update({f"left_{key}": value for key, value in left_obs.items()})
 
@@ -65,7 +61,7 @@ class ABBDualArm(Robot):
         obs_dict.update({f"right_{key}": value for key, value in right_obs.items()})
 
         return obs_dict
-    
+
     def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
         # Remove "left_" prefix
         left_action = {
@@ -87,8 +83,7 @@ class ABBDualArm(Robot):
 
     @property
     def _motors_ft(self) -> dict[str, type]:
-        return {
-            f"left_{key}": float for key in self.left_arm.action_features} | {
+        return {f"left_{key}": float for key in self.left_arm.action_features} | {
             f"right_{key}": float for key in self.right_arm.action_features
         }
 

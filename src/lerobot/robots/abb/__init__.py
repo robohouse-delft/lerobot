@@ -1,2 +1,2 @@
-from .config_abb import ABBConfig
 from .abb import ABB
+from .config_abb import ABBConfig

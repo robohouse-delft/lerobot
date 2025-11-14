@@ -25,7 +25,11 @@ from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnected
 
 from ..teleoperator import Teleoperator
 from ..utils import TeleopEvents
-from .configuration_keyboard import BiKeyboardEndEffectorTeleopConfig, KeyboardEndEffectorTeleopConfig, KeyboardTeleopConfig
+from .configuration_keyboard import (
+    BiKeyboardEndEffectorTeleopConfig,
+    KeyboardEndEffectorTeleopConfig,
+    KeyboardTeleopConfig,
+)
 
 PYNPUT_AVAILABLE = True
 try:
@@ -56,10 +60,11 @@ def str_to_key(key_str):
         if len(key_str) == 1:
             return keyboard.KeyCode.from_char(key_str)
         else:
-            raise ValueError(f"Unknown key: {key_str}")
+            raise ValueError(f"Unknown key: {key_str}") from None
+
 
 def is_reserved_key(key_pair: tuple[str, str]):
-    return 's' in key_pair or 'q' in key_pair or 'r' in key_pair
+    return "s" in key_pair or "q" in key_pair or "r" in key_pair
 
 
 class KeyboardTeleop(Teleoperator):
@@ -179,7 +184,12 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
         super().__init__(config)
         self.config = config
         self.misc_keys_queue = Queue()
-        if is_reserved_key(self.config.delta_x_keys) or is_reserved_key(self.config.delta_y_keys) or is_reserved_key(self.config.delta_z_keys) or is_reserved_key(self.config.gripper_keys):
+        if (
+            is_reserved_key(self.config.delta_x_keys)
+            or is_reserved_key(self.config.delta_y_keys)
+            or is_reserved_key(self.config.delta_z_keys)
+            or is_reserved_key(self.config.gripper_keys)
+        ):
             raise ValueError("Cannot listen for control action on reserved keys: ('s', 'q', 'r')")
 
     @property
@@ -310,6 +320,7 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
             TeleopEvents.RERECORD_EPISODE: rerecord_episode,
         }
 
+
 class BiKeyboardEndEffectorTeleop(KeyboardTeleop):
     """
     Teleop class to use keyboard inputs for end effector control of a dual arm manipulator.
@@ -322,9 +333,19 @@ class BiKeyboardEndEffectorTeleop(KeyboardTeleop):
         super().__init__(config)
         self.config = config
         self.misc_keys_queue = Queue()
-        if is_reserved_key(self.config.left_delta_x_keys) or is_reserved_key(self.config.left_delta_y_keys) or is_reserved_key(self.config.left_delta_z_keys) or is_reserved_key(self.config.left_gripper_keys):
+        if (
+            is_reserved_key(self.config.left_delta_x_keys)
+            or is_reserved_key(self.config.left_delta_y_keys)
+            or is_reserved_key(self.config.left_delta_z_keys)
+            or is_reserved_key(self.config.left_gripper_keys)
+        ):
             raise ValueError("Cannot listen for control action on reserved keys: ('s', 'q', 'r')")
-        if is_reserved_key(self.config.right_delta_x_keys) or is_reserved_key(self.config.right_delta_y_keys) or is_reserved_key(self.config.right_delta_z_keys) or is_reserved_key(self.config.right_gripper_keys):
+        if (
+            is_reserved_key(self.config.right_delta_x_keys)
+            or is_reserved_key(self.config.right_delta_y_keys)
+            or is_reserved_key(self.config.right_delta_z_keys)
+            or is_reserved_key(self.config.right_gripper_keys)
+        ):
             raise ValueError("Cannot listen for control action on reserved keys: ('s', 'q', 'r')")
 
     @property
@@ -333,13 +354,29 @@ class BiKeyboardEndEffectorTeleop(KeyboardTeleop):
             return {
                 "dtype": "float32",
                 "shape": (8,),
-                "names": {"left_delta_x": 0, "left_delta_y": 1, "left_delta_z": 2, "left_gripper": 3, "right_delta_x": 4, "right_delta_y": 5, "right_delta_z": 6, "right_gripper": 7},
+                "names": {
+                    "left_delta_x": 0,
+                    "left_delta_y": 1,
+                    "left_delta_z": 2,
+                    "left_gripper": 3,
+                    "right_delta_x": 4,
+                    "right_delta_y": 5,
+                    "right_delta_z": 6,
+                    "right_gripper": 7,
+                },
             }
         else:
             return {
                 "dtype": "float32",
                 "shape": (6,),
-                "names": {"left_delta_x": 0, "left_delta_y": 1, "left_delta_z": 2, "right_delta_x": 3, "right_delta_y": 4, "right_delta_z": 5},
+                "names": {
+                    "left_delta_x": 0,
+                    "left_delta_y": 1,
+                    "left_delta_z": 2,
+                    "right_delta_x": 3,
+                    "right_delta_y": 4,
+                    "right_delta_z": 5,
+                },
             }
 
     def get_action(self) -> dict[str, Any]:
