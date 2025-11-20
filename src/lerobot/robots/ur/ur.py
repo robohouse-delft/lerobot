@@ -93,9 +93,6 @@ class UR(Robot):
             print("Error: Robot is in either a protective stop or emergency stop state")
             return {}
 
-        if "joint" not in list(action.keys())[0]:
-            raise ValueError("Invalid state type")
-
         action_vals = [val for _, val in action.items()]
         robot_joints = action_vals[:6]
         # Check limits end-effector workspace limits before commanding the robot
@@ -117,22 +114,19 @@ class UR(Robot):
         self.gripper.move(int(gripper_pos), 255, self.config.max_gripper_force)
         self.robot.waitPeriod(t_start)
 
-        committed_action = {f"joint_{i}": v for i, v in enumerate(robot_joints)}
-        committed_action["gripper"] = action_vals[-1]
-
-        return committed_action
+        return action
 
     @property
     def _motors_ft(self) -> dict[str, type]:
-        # TODO: Maybe use a better name?
+        # Following the standard naming convention to append a `.pos` for position
         return {
-            "joint_0": float,
-            "joint_1": float,
-            "joint_2": float,
-            "joint_3": float,
-            "joint_4": float,
-            "joint_5": float,
-            "gripper": float,
+            "base.pos": float,
+            "shoulder.pos": float,
+            "elbow.pos": float,
+            "wrist_1.pos": float,
+            "wrist_2.pos": float,
+            "wrist_3.pos": float,
+            "gripper.pos": float,
         }
 
     @property

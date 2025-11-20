@@ -22,6 +22,7 @@ class ABB(Robot):
         self.y_limits: list[float] = [-0.4, 0.6]
         self.z_limits: list[float] = [0.0, 1.5]
         self.max_translation_delta_mm: float = 50.0
+        self.state_names = ["x", "y", "z", "qx", "qy", "qz", "qw"]
         self.config = config
         self.outside_workspace_limits = False
         self.robot: EGM | None = None
@@ -70,8 +71,8 @@ class ABB(Robot):
         obs_dict = {}
         # Read arm state
         pose_vector = self._get_pose_state()
-        for i, v in enumerate(pose_vector):
-            obs_dict[f"pose_{i}"] = v
+        for val, key in zip(pose_vector, self.state_names, strict=False):
+            obs_dict[f"{key}.pos"] = val
 
         return obs_dict
 
@@ -111,7 +112,7 @@ class ABB(Robot):
                     "Error: Robot end-effector has been commanded to be outside of the workspace limits. Move leader arm back to within workspace."
                 )
             self.outside_workspace_limits = True
-            return None
+            return {}
         elif self.outside_workspace_limits:
             print("Robot end-effector back inside the workspace")
             self.outside_workspace_limits = False
@@ -132,7 +133,9 @@ class ABB(Robot):
         self.prev_pos = pose[:3]
 
         committed_pose_action = pose[:3] + corrected_quat.tolist()
-        committed_action = {f"pose_{i}": v for i, v in enumerate(committed_pose_action)}
+        committed_action = {
+            f"{key}.pos": val for val, key in zip(committed_pose_action, self.state_names, strict=False)
+        }
 
         # Wait for cycle to complete
         t_end = time.perf_counter()
@@ -143,16 +146,8 @@ class ABB(Robot):
 
     @property
     def _motors_ft(self) -> dict[str, type]:
-        # TODO: Maybe use a better name?
-        return {
-            "pose_0": float,
-            "pose_1": float,
-            "pose_2": float,
-            "pose_3": float,
-            "pose_4": float,
-            "pose_5": float,
-            "pose_6": float,
-        }
+        # Following the standard naming convention to append a `.pos` for position
+        return {f"{key}.pos": float for key in self.state_names}
 
     @cached_property
     def observation_features(self) -> dict:
