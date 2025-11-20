@@ -36,7 +36,10 @@ class Gello(Teleoperator):
 
     @property
     def action_features(self) -> dict[str, type]:
-        return {f"joint_{i}": float for i in range(self.bus.num_dofs())}
+        joints_dict =  {f"joint_{i}": float for i in range(self.bus.num_dofs() - 1)}
+        joints_dict["gripper"] = float
+        return joints_dict
+
 
     @property
     def feedback_features(self) -> dict[str, type]:
@@ -70,7 +73,8 @@ class Gello(Teleoperator):
     def get_action(self) -> dict[str, float]:
         start = time.perf_counter()
         action = self.bus.get_joint_state()
-        action = {f"joint_{i}": val for i, val in enumerate(action)}
+        action = {f"joint_{i}": val for i, val in enumerate(action[:-1])}
+        action["gripper"] = action[-1]
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read action: {dt_ms:.1f}ms")
         return action
