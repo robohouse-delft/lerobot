@@ -107,6 +107,7 @@ from lerobot.teleoperators import (  # noqa: F401
     TeleoperatorConfig,
     bi_so100_leader,
     gello,
+    varjo_xr3,
     homunculus,
     koch_leader,
     make_teleoperator_from_config,

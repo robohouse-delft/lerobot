@@ -18,9 +18,9 @@ class ABB(Robot):
     def __init__(self, config: ABBConfig):
         super().__init__(config)
         # TODO: need to update these from configuration probably
-        self.x_limits: list[float] = [-1.0, 1.0]
-        self.y_limits: list[float] = [-0.4, 0.6]
-        self.z_limits: list[float] = [0.0, 1.5]
+        self.x_limits: list[float] = [0.15, 0.6]
+        self.y_limits: list[float] = [-0.3, 0.3]
+        self.z_limits: list[float] = [0.1, 0.5]
         self.max_translation_delta_mm: float = 50.0
         self.state_names = ["x", "y", "z", "qx", "qy", "qz", "qw"]
         self.config = config
@@ -99,8 +99,8 @@ class ABB(Robot):
                 state.cartesian.orient.u2,
                 state.cartesian.orient.u3,
             ]
-        elif "pose" in list(action.keys())[0]:
-            # Action is already in end-effector pose format [x, y, z, rot_x, rot_y, rot_z, rot_w]
+        elif "qx" in list(action.keys())[3]:
+            # Action is already in end-effector pose format [x, y, z, qx, qy, qz, qw]
             pose = action_vals
         else:
             raise ValueError("Invalid state length")
