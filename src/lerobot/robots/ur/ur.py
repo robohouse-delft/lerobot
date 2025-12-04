@@ -22,6 +22,7 @@ class UR(Robot):
         self.freq_hz = 500.0
         self.config = config
         self.start_position = np.deg2rad(config.start_position_deg)
+        self.robot_state_names = ["base", "shoulder", "elbow", "wrist1", "wrist2", "wrist3"]
         self.outside_workspace_limits = False
         self.gripper = RobotiqGripper()
         self.cameras = make_cameras_from_configs(config.cameras)
@@ -74,8 +75,8 @@ class UR(Robot):
         # Read arm state
         joint_vector = self._get_joint_state()
         for i, v in enumerate(joint_vector):
-            obs_dict[f"joint_{i}"] = v
-        obs_dict["gripper"] = self._get_gripper_pos()
+            obs_dict[f"{self.robot_state_names[i]}.pos"] = v
+        obs_dict["gripper.pos"] = self._get_gripper_pos()
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():
             obs_dict[cam_key] = cam.async_read()
@@ -119,15 +120,7 @@ class UR(Robot):
     @property
     def _motors_ft(self) -> dict[str, type]:
         # Following the standard naming convention to append a `.pos` for position
-        return {
-            "base.pos": float,
-            "shoulder.pos": float,
-            "elbow.pos": float,
-            "wrist_1.pos": float,
-            "wrist_2.pos": float,
-            "wrist_3.pos": float,
-            "gripper.pos": float,
-        }
+        return {f"{name}.pos": float for name in self.robot_state_names} | {"gripper.pos": float}
 
     @property
     def _cameras_ft(self) -> dict[str, tuple]:
