@@ -13,7 +13,7 @@ class URConfig(RobotConfig):
     gripper_hostname: str
     gripper_port: int
     max_gripper_force: int
-    start_position_deg: list = [0.0, -90.0, -90.0, -90.0, 90.0, -180.0]
+    start_position_deg: list = field(default_factory = lambda: [0.0, -90.0, -90.0, -90.0, 90.0, -180.0])
     x_limits: tuple[float, float] = (-1.0, 1.0)
     y_limits: tuple[float, float] = (-0.4, 0.6)
     z_limits: tuple[float, float] = (0.0, 1.5)

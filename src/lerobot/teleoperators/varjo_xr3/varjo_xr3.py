@@ -14,17 +14,19 @@ logger = logging.getLogger(__name__)
 PACKET_SIZE = 74
 
 class UdpListener:
-    def __init__(self, host="0.0.0.0", port=5005, buffer_size=PACKET_SIZE):
-        self.host = host
+    def __init__(self, remote_address: str, port=5005, local_address="0.0.0.0", buffer_size=PACKET_SIZE):
+        self.local_address = local_address
         self.port = port
         self.buffer_size = buffer_size
         self.latest_packet = None
+        self.running = False
+        self.remote_address = remote_address
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
 
         # Prepare socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind((host, port))
+        self.sock.bind((local_address, port))
 
         # Start background listener thread
         self.thread = threading.Thread(target=self._listen_loop, daemon=True)
@@ -32,13 +34,21 @@ class UdpListener:
 
     def _listen_loop(self):
         """Background thread that constantly receives UDP packets."""
+        self.running = True
         while not self._stop_event.is_set():
             try:
                 data, addr = self.sock.recvfrom(self.buffer_size)
+                if addr[0] != self.remote_address:
+                    continue
                 with self._lock:
                     self.latest_packet = (data, addr)  # store latest packet
             except OSError:
                 break  # socket closed
+        self.running = False
+    
+    @property
+    def is_connected(self) -> bool:
+        return self.running
 
     def get_latest_packet(self):
         """Thread-safe read access."""
@@ -71,8 +81,7 @@ def _parse_hand_data(data: bytes):
     <?f f f f f f f f   right hand (same)
     """
 
-    fmt = "<q" + "<?" + "8f" + "<?" + "8f"
-    unpacked = struct.unpack(fmt, data)
+    unpacked = struct.unpack("<q?ffffffff?ffffffff", data)
 
     # --- Extract fields ---
     timestamp = unpacked[0]
@@ -109,13 +118,16 @@ class VarjoXR3(Teleoperator):
 
     @property
     def is_connected(self) -> bool:
-        return True
+        if self.socket is not None and self.socket.is_connected:
+            return True
+
+        return False
 
     def connect(self, calibrate: bool = True) -> None:
         if self.is_connected:
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
-        self.socket = UdpListener(host=self.config.host, port=self.config.port)
+        self.socket = UdpListener(remote_address=self.config.host, port=self.config.port)
 
         self.configure()
         logger.info(f"{self} connected.")
@@ -145,13 +157,18 @@ class VarjoXR3(Teleoperator):
         action = {}
         if left_hand.enabled:
             for key, val in left_hand.__dict__.items():
-                if key != "enabled" or key != "gripper":
-                    action["left_" + key] = val
+                if key == "enabled" or key == "gripper":
+                    continue
+                action["left_" + key] = val
         if right_hand.enabled:
             for key, val in right_hand.__dict__.items():
-                if key != "enabled" or key != "gripper":
-                    action["right_" + key] = val
-
+                if key == "enabled" or key == "gripper":
+                    continue
+                action["right_" + key] = val
+        
+        # if not (left_hand.enabled and right_hand.enabled):
+        #     print("No tracking data")
+        
         return action
 
     def send_feedback(self, feedback: dict[str, float]) -> None:

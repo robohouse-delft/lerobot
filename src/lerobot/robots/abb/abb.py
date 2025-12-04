@@ -18,9 +18,9 @@ class ABB(Robot):
     def __init__(self, config: ABBConfig):
         super().__init__(config)
         # TODO: need to update these from configuration probably
-        self.x_limits: list[float] = [0.15, 0.6]
-        self.y_limits: list[float] = [-0.3, 0.3]
-        self.z_limits: list[float] = [0.1, 0.5]
+        self.x_limits: list[float] = [0.15, 0.7]
+        self.y_limits: list[float] = [-0.5, 0.5]
+        self.z_limits: list[float] = [0.0, 0.5]
         self.max_translation_delta_mm: float = 50.0
         self.state_names = ["x", "y", "z", "qx", "qy", "qz", "qw"]
         self.config = config
@@ -86,6 +86,10 @@ class ABB(Robot):
             raise RuntimeError("Robot problem!")
 
         action_vals = [val for _, val in action.items()]
+        if len(action_vals) == 0:
+            # Do nothing
+            return action
+
         if "delta" in list(action.keys())[0]:
             delta_x = action.pop("delta_x")
             delta_y = action.pop("delta_y")
@@ -101,7 +105,11 @@ class ABB(Robot):
             ]
         elif "qx" in list(action.keys())[3]:
             # Action is already in end-effector pose format [x, y, z, qx, qy, qz, qw]
-            pose = action_vals
+            pose = (np.array(action_vals[:3]) * 1000.0).tolist() + [action_vals[-1], action_vals[3], action_vals[4], action_vals[5]]
+            # pose = (np.array(action_vals[:3]) * 1000.0).tolist() + [state.cartesian.orient.u0,
+            #     state.cartesian.orient.u1,
+            #     state.cartesian.orient.u2,
+            #     state.cartesian.orient.u3]
         else:
             raise ValueError("Invalid state length")
 
@@ -111,7 +119,9 @@ class ABB(Robot):
                 print(
                     "Error: Robot end-effector has been commanded to be outside of the workspace limits. Move leader arm back to within workspace."
                 )
+                print(f"Bad pose: {pose}")
             self.outside_workspace_limits = True
+            self.robot.send_to_robot(cartesian=(np.array(self.prev_pos), self.prev_rot.as_quat()))
             return {}
         elif self.outside_workspace_limits:
             print("Robot end-effector back inside the workspace")
@@ -119,11 +129,12 @@ class ABB(Robot):
 
         # Ensure that the delta movement is within the set threshold
         # TODO: should we consider rotation as well?
-        pos_diff = np.array(pose[:3]) - np.array(self.prev_pos)
-        if np.linalg.norm(pos_diff) > self.max_translation_delta_mm:
-            direction = pos_diff / np.linalg.norm(pos_diff)
-            pose[:3] = self.prev_pos + (direction * self.max_translation_delta_mm).tolist()
-            print("Warning: TCP pose is too far from current pose. Clipped translation to:", pose[:3])
+        print(pose)
+        # pos_diff = np.array(pose[:3]) - np.array(self.prev_pos)
+        # if np.linalg.norm(pos_diff) > self.max_translation_delta_mm:
+        #     direction = pos_diff / np.linalg.norm(pos_diff)
+        #     pose[:3] = self.prev_pos + (direction * self.max_translation_delta_mm).tolist()
+        #     print("Warning: TCP pose is too far from current pose. Clipped translation to:", pose[:3])
 
         # Send to robot
         self.robot.send_to_robot(cartesian=(np.array(pose[:3]), np.array(pose[3:])))

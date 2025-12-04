@@ -72,12 +72,14 @@ class ABBDualArm(Robot):
             key.removeprefix("right_"): value for key, value in action.items() if key.startswith("right_")
         }
 
-        send_action_left = self.left_arm.send_action(left_action)
-        send_action_right = self.right_arm.send_action(right_action)
-
-        # Add prefixes back
-        prefixed_send_action_left = {f"left_{key}": value for key, value in send_action_left.items()}
-        prefixed_send_action_right = {f"right_{key}": value for key, value in send_action_right.items()}
+        prefixed_send_action_left = {}
+        prefixed_send_action_right = {}
+        if left_action != {}:
+            send_action_left = self.left_arm.send_action(left_action)
+            prefixed_send_action_left = {f"left_{key}": value for key, value in send_action_left.items()}
+        if right_action != {}:
+            send_action_right = self.right_arm.send_action(right_action)
+            prefixed_send_action_right = {f"right_{key}": value for key, value in send_action_right.items()}
 
         return {**prefixed_send_action_left, **prefixed_send_action_right}
 
