@@ -49,7 +49,11 @@ class UR(Robot):
 
     def disconnect(self) -> None:
         self.gripper.disconnect()
+        # Ensure robot is stopped before disconnecting
+        self.robot.servoStop()
+        self.robot.stopScript()
         self.robot.disconnect()
+        self.r_inter.disconnect()
         for cam in self.cameras.values():
             cam.disconnect()
 
