@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Configuration for keyboard teleoperators."""
 
 from dataclasses import dataclass
 
@@ -30,6 +31,14 @@ class KeyboardTeleopConfig(TeleoperatorConfig):
 @TeleoperatorConfig.register_subclass("keyboard_ee")
 @dataclass
 class KeyboardEndEffectorTeleopConfig(KeyboardTeleopConfig):
+    """Configuration for keyboard end-effector teleoperator.
+
+    Used for controlling robot end-effectors with keyboard inputs.
+
+    Attributes:
+        use_gripper: Whether to include gripper control in actions
+    """
+
     use_gripper: bool = True
     delta_x_keys: tuple[str, str] = ("up", "down")
     delta_y_keys: tuple[str, str] = ("left", "right")
