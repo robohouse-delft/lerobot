@@ -1,12 +1,17 @@
+import logging
+import time
 from functools import cached_property
 
 from pyparsing import Any
 
+from lerobot.cameras import make_cameras_from_configs
 from lerobot.robots import Robot
 from lerobot.robots.abb import ABB
 from lerobot.robots.abb.config_abb import ABBConfig
 
 from .config_abb_dual_arm import ABBDualArmConfig
+
+logger = logging.getLogger(__name__)
 
 
 class ABBDualArm(Robot):
@@ -17,23 +22,26 @@ class ABBDualArm(Robot):
         super().__init__(config)
         self.config = config
         left_arm_config = ABBConfig(
-            port=self.config.left_port,
-            state_feedback_hz=self.config.state_feedback_hz,
+            port=self.config.left_port, state_feedback_hz=self.config.state_feedback_hz, cameras={}
         )
         right_arm_config = ABBConfig(
-            port=self.config.right_port,
-            state_feedback_hz=self.config.state_feedback_hz,
+            port=self.config.right_port, state_feedback_hz=self.config.state_feedback_hz, cameras={}
         )
         self.left_arm = ABB(left_arm_config)
         self.right_arm = ABB(right_arm_config)
+        self.cameras = make_cameras_from_configs(config.cameras)
 
     def connect(self, calibrate: bool = True) -> None:
         self.left_arm.connect()
         self.right_arm.connect()
+        for cam in self.cameras.values():
+            cam.connect()
 
     def disconnect(self) -> None:
         self.left_arm.disconnect()
         self.right_arm.disconnect()
+        for cam in self.cameras.values():
+            cam.disconnect()
 
     def configure(self) -> None:
         self.left_arm.configure()
@@ -59,6 +67,12 @@ class ABBDualArm(Robot):
         # Add "right_" prefix
         right_obs = self.right_arm.get_observation()
         obs_dict.update({f"right_{key}": value for key, value in right_obs.items()})
+
+        for cam_key, cam in self.cameras.items():
+            start = time.perf_counter()
+            obs_dict[cam_key] = cam.async_read()
+            dt_ms = (time.perf_counter() - start) * 1e3
+            logger.debug(f"{self} read {cam_key}: {dt_ms:.1f}ms")
 
         return obs_dict
 
@@ -89,9 +103,15 @@ class ABBDualArm(Robot):
             f"right_{key}": float for key in self.right_arm.action_features
         }
 
+    @property
+    def _cameras_ft(self) -> dict[str, tuple]:
+        return {
+            cam: (self.config.cameras[cam].height, self.config.cameras[cam].width, 3) for cam in self.cameras
+        }
+
     @cached_property
     def observation_features(self) -> dict:
-        return {**self._motors_ft}
+        return {**self._motors_ft, **self._cameras_ft}
 
     @cached_property
     def action_features(self) -> dict:
@@ -99,4 +119,8 @@ class ABBDualArm(Robot):
 
     @property
     def is_connected(self) -> bool:
-        return self.left_arm.is_connected and self.right_arm.is_connected
+        return (
+            self.left_arm.is_connected
+            and self.right_arm.is_connected
+            and all(cam.is_connected for cam in self.cameras.values())
+        )

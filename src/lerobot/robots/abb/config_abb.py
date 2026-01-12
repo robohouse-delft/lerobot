@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from lerobot.cameras import CameraConfig
 from lerobot.robots import RobotConfig
 
 
@@ -8,3 +9,4 @@ from lerobot.robots import RobotConfig
 class ABBConfig(RobotConfig):
     state_feedback_hz: float
     port: int
+    cameras: dict[str, CameraConfig] = field(default_factory=dict)

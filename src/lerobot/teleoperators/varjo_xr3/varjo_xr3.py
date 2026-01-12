@@ -105,7 +105,7 @@ class VarjoXR3(Teleoperator):
     def __init__(self, config: VarjoXR3Config):
         super().__init__(config)
         self.config = config
-        self.state_names = ["x", "y", "z", "qx", "qy", "qz", "qw"]
+        self.state_names = ["x", "y", "z", "qx", "qy", "qz", "qw", "gripper"]
         self.socket: UdpListener | None = None
 
     @property
@@ -157,12 +157,12 @@ class VarjoXR3(Teleoperator):
         action = {}
         if left_hand.enabled:
             for key, val in left_hand.__dict__.items():
-                if key == "enabled" or key == "gripper":
+                if key == "enabled":
                     continue
                 action["left_" + key] = val
         if right_hand.enabled:
             for key, val in right_hand.__dict__.items():
-                if key == "enabled" or key == "gripper":
+                if key == "enabled":
                     continue
                 action["right_" + key] = val
         
