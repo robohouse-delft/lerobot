@@ -64,6 +64,12 @@ class ABB(Robot):
         self.configure()
 
     def _listen_loop(self):
+        # Flush the initial messages to ensure we have the latest going forward
+        while True:
+            success, _ = self.robot.receive_from_robot(timeout=0.004)
+            if not success:
+                break
+        # Now start the main listening loop
         while not self.robot_stop_event.is_set():
             if self.robot is None:
                 time.sleep(0.01)
@@ -123,6 +129,7 @@ class ABB(Robot):
         pose_vector = self._get_pose_state()
         for val, key in zip(pose_vector, self.state_names, strict=False):
             obs_dict[f"{key}.pos"] = val
+        obs_dict["gripper.pos"] = self.prev_gripper
 
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():
@@ -137,10 +144,12 @@ class ABB(Robot):
         if state is None or not state.rapid_running:
             raise RuntimeError("Robot problem!")
 
-        # print(f"State: {state}")
-
         if state.collision_info.collsionTriggered:
-            print("Robot collision detected, pause sending action...")
+            print("Robot collision or motion has stopped!")
+            self.robot.send_to_robot(
+                cartesian=(np.array(self.prev_pos), self.prev_rot.as_quat()),
+                rapid_to_robot=np.array([0, self.prev_gripper]),
+            )
             return {}
 
         action_vals = [val for _, val in action.items()]
@@ -238,7 +247,7 @@ class ABB(Robot):
     @property
     def _motors_ft(self) -> dict[str, type]:
         # Following the standard naming convention to append a `.pos` for position
-        return {f"{key}.pos": float for key in self.state_names}
+        return {f"{name}.pos": float for name in self.state_names} | {"gripper.pos": float}
 
     @property
     def _cameras_ft(self) -> dict[str, tuple]:
@@ -278,7 +287,7 @@ class ABB(Robot):
                 ]
             )
             corrected_quat = self._normalise_quat(quat)
-            return np.array(pos + corrected_quat.tolist())
+            return np.array(pos + corrected_quat.tolist(), dtype=np.float32)
         except RuntimeError as e:
             print(e)
             return np.zeros(6)
