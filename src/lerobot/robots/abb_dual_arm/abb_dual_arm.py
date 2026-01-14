@@ -1,10 +1,19 @@
 import logging
 import time
+from dataclasses import dataclass
 from functools import cached_property
 
+import numpy as np
 from pyparsing import Any
 
 from lerobot.cameras import make_cameras_from_configs
+from lerobot.configs.types import FeatureType, PipelineFeatureType, PolicyFeature
+from lerobot.processor import (
+    ProcessorStepRegistry,
+    RobotAction,
+    RobotActionProcessorStep,
+    TransitionKey,
+)
 from lerobot.robots import Robot
 from lerobot.robots.abb import ABB
 from lerobot.robots.abb.config_abb import ABBConfig
@@ -124,3 +133,100 @@ class ABBDualArm(Robot):
             and self.right_arm.is_connected
             and all(cam.is_connected for cam in self.cameras.values())
         )
+
+# This is only needed if you want to convert from delta actions to pose actions, i.e. for keyboard teleoperation.
+@ProcessorStepRegistry.register("abb_dual_arm_delta_to_pose")
+@dataclass
+class ABBDualArmDeltaToPose(RobotActionProcessorStep):
+    end_effector_step_sizes: dict
+
+    def action(self, action: RobotAction) -> RobotAction:
+        observation = self.transition.get(TransitionKey.OBSERVATION).copy()
+
+        if observation is None:
+            raise ValueError("Joints observation is require for computing robot kinematics")
+
+        # Convert to a dictionary that only has keys that ends with ".pos"
+        obs = {k: v for k, v in observation.items() if k.endswith(".pos")}
+
+        if obs is None:
+            raise ValueError("Pose observation is require for computing next pose")
+
+        self._transform_action(action, obs, prefix="left")
+        self._transform_action(action, obs, prefix="right")
+
+        return action
+
+    def reset(self):
+        """Resets the internal state of the processor."""
+        pass
+
+    def transform_features(
+        self, features: dict[PipelineFeatureType, dict[str, PolicyFeature]]
+    ) -> dict[PipelineFeatureType, dict[str, PolicyFeature]]:
+        for feat in [
+            "left_delta_x",
+            "left_delta_y",
+            "left_delta_z",
+            "left_gripper",
+            "right_delta_x",
+            "right_delta_y",
+            "right_delta_z",
+            "right_gripper",
+        ]:
+            features[PipelineFeatureType.ACTION].pop(f"{feat}", None)
+
+        for feat in [
+            "left_x",
+            "left_y",
+            "left_z",
+            "left_qw",
+            "left_qx",
+            "left_qy",
+            "left_qz",
+            "left_gripper",
+            "right_x",
+            "right_y",
+            "right_z",
+            "right_qw",
+            "right_qx",
+            "right_qy",
+            "right_qz",
+            "right_gripper",
+        ]:
+            features[PipelineFeatureType.ACTION][f"{feat}.pos"] = PolicyFeature(
+                type=FeatureType.ACTION, shape=(1,)
+            )
+
+        return features
+
+    def _transform_action(self, action: RobotAction, observation: Any, prefix: str):
+        tx = float(action.pop(f"{prefix}_delta_x"))
+        ty = float(action.pop(f"{prefix}_delta_y"))
+        tz = float(action.pop(f"{prefix}_delta_z"))
+        gripper_pos = float(action.pop(f"{prefix}_gripper"))
+
+        delta_p = np.array(
+            [
+                tx * self.end_effector_step_sizes["x"],
+                ty * self.end_effector_step_sizes["y"],
+                tz * self.end_effector_step_sizes["z"],
+            ],
+            dtype=float,
+        )
+
+        # Write action fields
+        action[f"{prefix}_x.pos"] = float((delta_p[0] + observation[f"{prefix}_x.pos"]) / 1000.0)
+        action[f"{prefix}_y.pos"] = float((delta_p[1] + observation[f"{prefix}_y.pos"]) / 1000.0)
+        action[f"{prefix}_z.pos"] = float((delta_p[2] + observation[f"{prefix}_z.pos"]) / 1000.0)
+        action[f"{prefix}_qx.pos"] = float(observation[f"{prefix}_qx.pos"])
+        action[f"{prefix}_qy.pos"] = float(observation[f"{prefix}_qy.pos"])
+        action[f"{prefix}_qz.pos"] = float(observation[f"{prefix}_qz.pos"])
+        action[f"{prefix}_qw.pos"] = float(observation[f"{prefix}_qw.pos"])
+        # Gripper actions are expected to be between 0 (close), 1 (stay), 2 (open)
+        if gripper_pos == 0:
+            action[f"{prefix}_gripper.pos"] = 1.0
+        elif gripper_pos == 2:
+            action[f"{prefix}_gripper.pos"] = 0.0
+        else:
+            action[f"{prefix}_gripper.pos"] = observation[f"{prefix}_gripper.pos"]

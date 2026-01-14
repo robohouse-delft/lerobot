@@ -50,12 +50,12 @@ class KeyboardEndEffectorTeleopConfig(KeyboardTeleopConfig):
 class BiKeyboardEndEffectorTeleopConfig(KeyboardTeleopConfig):
     use_gripper: bool = True
     # Left arm controls
-    left_delta_x_keys: tuple[str, str] = ("down", "up")
-    left_delta_y_keys: tuple[str, str] = ("left", "right")
-    left_delta_z_keys: tuple[str, str] = ("shift", "shift_r")
+    left_delta_x_keys: tuple[str, str] = ("s", "w")
+    left_delta_y_keys: tuple[str, str] = ("a", "d")
+    left_delta_z_keys: tuple[str, str] = ("q", "e")
     left_gripper_keys: tuple[str, str] = ("ctrl_l", "ctrl_r")
     # Right arm controls
     right_delta_x_keys: tuple[str, str] = ("h", "y")
     right_delta_y_keys: tuple[str, str] = ("g", "j")
     right_delta_z_keys: tuple[str, str] = ("t", "u")
-    right_gripper_keys: tuple[str, str] = ("z", "x")
+    right_gripper_keys: tuple[str, str] = ("shift_l", "shift_r")

@@ -64,7 +64,7 @@ def str_to_key(key_str):
 
 
 def is_reserved_key(key_pair: tuple[str, str]):
-    return "s" in key_pair or "q" in key_pair or "r" in key_pair
+    return "left" in key_pair or "right" in key_pair or "esc" in key_pair
 
 
 class KeyboardTeleop(Teleoperator):
@@ -190,7 +190,7 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
             or is_reserved_key(self.config.delta_z_keys)
             or is_reserved_key(self.config.gripper_keys)
         ):
-            raise ValueError("Cannot listen for control action on reserved keys: ('s', 'q', 'r')")
+            raise ValueError("Cannot listen for control action on reserved keys: ('left', 'right', 'esc')")
 
     @property
     def action_features(self) -> dict:
@@ -348,6 +348,14 @@ class BiKeyboardEndEffectorTeleop(KeyboardTeleop):
         ):
             raise ValueError("Cannot listen for control action on reserved keys: ('s', 'q', 'r')")
 
+        self.ramp_rate = 0.1
+        self.left_vel_x = 0.0
+        self.left_vel_y = 0.0
+        self.left_vel_z = 0.0
+        self.right_vel_x = 0.0
+        self.right_vel_y = 0.0
+        self.right_vel_z = 0.0
+
     @property
     def action_features(self) -> dict:
         if self.config.use_gripper:
@@ -439,13 +447,20 @@ class BiKeyboardEndEffectorTeleop(KeyboardTeleop):
 
         self.current_pressed.clear()
 
+        self.left_vel_x = self._ramp_value(self.left_vel_x, left_delta_x, self.ramp_rate)
+        self.left_vel_y = self._ramp_value(self.left_vel_y, left_delta_y, self.ramp_rate)
+        self.left_vel_z = self._ramp_value(self.left_vel_z, left_delta_z, self.ramp_rate)
+        self.right_vel_x = self._ramp_value(self.right_vel_x, right_delta_x, self.ramp_rate)
+        self.right_vel_y = self._ramp_value(self.right_vel_y, right_delta_y, self.ramp_rate)
+        self.right_vel_z = self._ramp_value(self.right_vel_z, right_delta_z, self.ramp_rate)
+
         action_dict = {
-            "left_delta_x": left_delta_x,
-            "left_delta_y": left_delta_y,
-            "left_delta_z": left_delta_z,
-            "right_delta_x": right_delta_x,
-            "right_delta_y": right_delta_y,
-            "right_delta_z": right_delta_z,
+            "left_delta_x": self.left_vel_x,
+            "left_delta_y": self.left_vel_y,
+            "left_delta_z": self.left_vel_z,
+            "right_delta_x": self.right_vel_x,
+            "right_delta_y": self.right_vel_y,
+            "right_delta_z": self.right_vel_z,
         }
 
         if self.config.use_gripper:
@@ -495,9 +510,9 @@ class BiKeyboardEndEffectorTeleop(KeyboardTeleop):
             str_to_key(self.config.right_delta_z_keys[0]),
             str_to_key(self.config.right_delta_z_keys[1]),
             str_to_key(self.config.left_gripper_keys[0]),
-            str_to_key(self.config.left_gripper_keys[0]),
+            str_to_key(self.config.left_gripper_keys[1]),
             str_to_key(self.config.right_gripper_keys[0]),
-            str_to_key(self.config.right_gripper_keys[0]),
+            str_to_key(self.config.right_gripper_keys[1]),
         ]
         is_intervention = any(self.current_pressed.get(key, False) for key in movement_keys)
 
@@ -524,3 +539,13 @@ class BiKeyboardEndEffectorTeleop(KeyboardTeleop):
             TeleopEvents.SUCCESS: success,
             TeleopEvents.RERECORD_EPISODE: rerecord_episode,
         }
+    
+    def _ramp_value(self, current: float, target: float, ramp_rate: float) -> float:
+        """
+        Moves 'current' towards 'target' by 'ramp_rate'.
+        """
+        if current < target:
+            return min(current + ramp_rate, target)
+        elif current > target:
+            return max(current - ramp_rate, target)
+        return current
