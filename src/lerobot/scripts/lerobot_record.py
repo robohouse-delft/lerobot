@@ -133,6 +133,11 @@ from lerobot.utils.utils import (
 )
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
 
+from lerobot.robots.abb_dual_arm.abb_dual_arm import ABBDualArmDeltaToPose
+from lerobot.processor.converters import (
+    robot_action_observation_to_transition,
+    transition_to_robot_action,
+)
 
 @dataclass
 class DatasetRecordConfig:
@@ -386,6 +391,18 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
     teleop = make_teleoperator_from_config(cfg.teleop) if cfg.teleop is not None else None
 
     teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
+
+    teleop_action_processor = RobotProcessorPipeline[
+        tuple[RobotAction, RobotObservation], RobotAction
+    ](
+        steps=[
+            ABBDualArmDeltaToPose(
+                end_effector_step_sizes={"x": 20.0, "y": 20.0, "z": 20.0},
+            ),
+        ],
+        to_transition=robot_action_observation_to_transition,
+        to_output=transition_to_robot_action,
+    )
 
     dataset_features = combine_feature_dicts(
         aggregate_pipeline_dataset_features(
