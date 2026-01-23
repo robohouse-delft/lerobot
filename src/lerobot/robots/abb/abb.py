@@ -177,7 +177,7 @@ class ABB(Robot):
                 action_vals[-1] = 0.0
             elif action_vals[-1] == 1:
                 action_vals[-1] = self.prev_gripper
-        elif "qx" in list(action.keys())[3]:
+        elif "qx.pos" in list(action.keys())[3]:
             # Action is already in end-effector pose format [x, y, z, qx, qy, qz, qw]
             pose = (np.array(action_vals[:3]) * 1000.0).tolist() + [
                 action_vals[6],
@@ -216,6 +216,7 @@ class ABB(Robot):
             self.outside_workspace_limits = False
 
         # Ensure that we have successfully found the initial pose (or pose when left workspace)
+        # TODO: This should not be used during inference (only for teleop).
         if not self.last_pose_found:
             current_pose = np.array([state.cartesian.pos.x, state.cartesian.pos.y, state.cartesian.pos.z])
             pos_diff = np.array(pose[:3]) - np.array(current_pose)

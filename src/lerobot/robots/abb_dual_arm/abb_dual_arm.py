@@ -134,6 +134,39 @@ class ABBDualArm(Robot):
             and all(cam.is_connected for cam in self.cameras.values())
         )
 
+
+# This is only needed if you want to convert an empty or incomplete action (e.g. from the VR setup) to a valid action (e.g. the current robot pose).
+@ProcessorStepRegistry.register("abb_dual_arm_empty_action_processor")
+@dataclass
+class ABBDualArmEmptyActionProcessor(RobotActionProcessorStep):
+    def action(self, action: RobotAction) -> RobotAction:
+        observation = self.transition.get(TransitionKey.OBSERVATION).copy()
+
+        if observation is None:
+            raise ValueError("Joints observation is required to replace an empty action")
+
+        # Convert to a dictionary that only has keys that ends with ".pos"
+        obs = {k: v for k, v in observation.items() if k.endswith(".pos")}
+
+        if obs is None:
+            raise ValueError("Pose observation is require to replace an empty action")
+
+        # print(obs)
+        if "left_x.pos" not in action and "right_x.pos" not in action:
+            action = obs
+        elif "left_x.pos" not in action:
+            action = {k: v for k, v in obs.items() if k.startswith("left")}
+        elif "right_x.pos" not in action:
+            action = {k: v for k, v in obs.items() if k.startswith("right")}
+
+        return action
+
+    def transform_features(
+        self, features: dict[PipelineFeatureType, dict[str, PolicyFeature]]
+    ) -> dict[PipelineFeatureType, dict[str, PolicyFeature]]:
+        return features
+
+
 # This is only needed if you want to convert from delta actions to pose actions, i.e. for keyboard teleoperation.
 @ProcessorStepRegistry.register("abb_dual_arm_delta_to_pose")
 @dataclass
@@ -144,7 +177,7 @@ class ABBDualArmDeltaToPose(RobotActionProcessorStep):
         observation = self.transition.get(TransitionKey.OBSERVATION).copy()
 
         if observation is None:
-            raise ValueError("Joints observation is require for computing robot kinematics")
+            raise ValueError("Joints observation is required for computing next pose")
 
         # Convert to a dictionary that only has keys that ends with ".pos"
         obs = {k: v for k, v in observation.items() if k.endswith(".pos")}
@@ -156,10 +189,6 @@ class ABBDualArmDeltaToPose(RobotActionProcessorStep):
         self._transform_action(action, obs, prefix="right")
 
         return action
-
-    def reset(self):
-        """Resets the internal state of the processor."""
-        pass
 
     def transform_features(
         self, features: dict[PipelineFeatureType, dict[str, PolicyFeature]]

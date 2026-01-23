@@ -159,16 +159,16 @@ class VarjoXR3(Teleoperator):
             for key, val in left_hand.__dict__.items():
                 if key == "enabled":
                     continue
-                action["left_" + key] = val
+                action["left_" + key + ".pos"] = val
         if right_hand.enabled:
             for key, val in right_hand.__dict__.items():
                 if key == "enabled":
                     continue
-                action["right_" + key] = val
-        
+                action["right_" + key + ".pos"] = val
+
         # if not (left_hand.enabled and right_hand.enabled):
         #     print("No tracking data")
-        
+
         return action
 
     def send_feedback(self, feedback: dict[str, float]) -> None:
