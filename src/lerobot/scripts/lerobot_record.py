@@ -120,9 +120,11 @@ from lerobot.teleoperators import (  # noqa: F401
     gello,
     bi_so_leader,
     koch_leader,
+    make_teleoperator_from_config,
     omx_leader,
     reachy2_teleoperator,
     so_leader,
+    varjo_xr3,
 )
 from lerobot.teleoperators.keyboard.teleop_keyboard import KeyboardTeleop
 from lerobot.utils.constants import ACTION, OBS_STR
