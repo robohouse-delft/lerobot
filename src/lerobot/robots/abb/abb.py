@@ -111,7 +111,7 @@ class ABB(Robot):
             )
             self.prev_pos = np.array([state.cartesian.pos.x, state.cartesian.pos.y, state.cartesian.pos.z])
         else:
-            raise RuntimeError("Robot problem!")
+            raise RuntimeError("Error: No response from robot over EGM")
 
     @property
     def is_calibrated(self) -> bool:
@@ -142,15 +142,10 @@ class ABB(Robot):
             state = self.latest_robot_state
 
         if state is None or not state.rapid_running:
-            raise RuntimeError("Robot problem!")
+            raise RuntimeError("Error: Robot not responding or RAPID no longer running")
 
         if state.collision_info.collsionTriggered:
-            print("Robot collision or motion has stopped!")
-            self.robot.send_to_robot(
-                cartesian=(np.array(self.prev_pos), self.prev_rot.as_quat()),
-                rapid_to_robot=np.array([0, self.prev_gripper]),
-            )
-            return {}
+            raise RuntimeError("Error: Robot collision or motion has stopped!")
 
         action_vals = [val for _, val in action.items()]
         if len(action_vals) == 0:
