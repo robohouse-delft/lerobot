@@ -18,6 +18,7 @@ from lerobot.robots import Robot
 from lerobot.robots.abb import ABB
 from lerobot.robots.abb.config_abb import ABBConfig
 
+from .abb_rws_client import ABB_RWSController
 from .config_abb_dual_arm import ABBDualArmConfig
 
 logger = logging.getLogger(__name__)
@@ -36,11 +37,44 @@ class ABBDualArm(Robot):
         right_arm_config = ABBConfig(
             port=self.config.right_port, state_feedback_hz=self.config.state_feedback_hz, cameras={}
         )
+        # ABB RWS client controller
+        self.rws = ABB_RWSController("192.168.125.1")
         self.left_arm = ABB(left_arm_config)
         self.right_arm = ABB(right_arm_config)
         self.cameras = make_cameras_from_configs(config.cameras)
 
     def connect(self, calibrate: bool = True) -> None:
+        # First ensure that the robot program is running, otherwise restart
+        if self.rws.is_running():
+            print("STATUS: Robot is already running. Stop it and restart.")
+            self.rws.pulse_signal("v_Stop")
+            # Wait for the robot to actually stop (Crucial!)
+            max_retries = 2
+            while self.rws.is_running() and max_retries > 0:
+                time.sleep(0.2)
+                max_retries -= 1
+            if self.rws.is_running():
+                raise ConnectionError("ERROR: Robot failed to stop. Check communications.")
+
+        # Check Motors
+        if not self.rws.is_motors_on():
+            print("ACTION: Motors are OFF. Attempting recovery...")
+            # Step A: Turn Motors On
+            self.rws.pulse_signal("v_MotorsOn")
+            time.sleep(0.5)  # Critical wait for contactors
+            # Double check if motors actually came on
+            if self.rws.is_motors_on():
+                print("   -> Motors successfully enabled.")
+            else:
+                raise ConnectionError("ERROR: Robot's motors failed to turn on (Check E-Stops).")
+        else:
+            print("ACTION: Motors are already ON.")
+
+        # Reset PP and Start
+        print("ACTION: Resetting Program Pointer to Main...")
+        self.rws.pulse_signal("v_ResetPP")
+        time.sleep(2.0)
+        # Connect to get arm with EGM
         self.left_arm.connect()
         self.right_arm.connect()
         for cam in self.cameras.values():
