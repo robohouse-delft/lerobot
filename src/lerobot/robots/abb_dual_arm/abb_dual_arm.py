@@ -47,7 +47,7 @@ class ABBDualArm(Robot):
         # First ensure that the robot program is running, otherwise restart
         if self.rws.is_running():
             print("STATUS: Robot is already running. Stop it and restart.")
-            self.rws.pulse_signal("v_Stop")
+            self.rws.pulse_signal("v_oStop")
             # Wait for the robot to actually stop (Crucial!)
             max_retries = 2
             while self.rws.is_running() and max_retries > 0:
@@ -60,7 +60,7 @@ class ABBDualArm(Robot):
         if not self.rws.is_motors_on():
             print("ACTION: Motors are OFF. Attempting recovery...")
             # Step A: Turn Motors On
-            self.rws.pulse_signal("v_MotorsOn")
+            self.rws.pulse_signal("v_oMotorsOn")
             time.sleep(0.5)  # Critical wait for contactors
             # Double check if motors actually came on
             if self.rws.is_motors_on():
@@ -72,7 +72,7 @@ class ABBDualArm(Robot):
 
         # Reset PP and Start
         print("ACTION: Resetting Program Pointer to Main...")
-        self.rws.pulse_signal("v_ResetPP")
+        self.rws.pulse_signal("v_oResetPP")
         time.sleep(2.0)
         # Connect to get arm with EGM
         self.left_arm.connect()
