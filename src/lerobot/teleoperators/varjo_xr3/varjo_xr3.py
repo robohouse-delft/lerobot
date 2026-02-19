@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 PACKET_SIZE = 74
 
+
 class UdpListener:
     def __init__(self, remote_address: str, port=5005, local_address="0.0.0.0", buffer_size=PACKET_SIZE):
         self.local_address = local_address
@@ -45,7 +46,7 @@ class UdpListener:
             except OSError:
                 break  # socket closed
         self.running = False
-    
+
     @property
     def is_connected(self) -> bool:
         return self.running
@@ -61,6 +62,7 @@ class UdpListener:
         self.sock.close()
         self.thread.join()
 
+
 @dataclass
 class HandPose:
     enabled: bool
@@ -72,6 +74,7 @@ class HandPose:
     qz: float
     qw: float
     gripper: float
+
 
 def _parse_hand_data(data: bytes):
     """
@@ -86,13 +89,21 @@ def _parse_hand_data(data: bytes):
     # --- Extract fields ---
     timestamp = unpacked[0]
 
-    left_vals  = unpacked[1 : 1 + 1 + 8]     # bool + 8 floats
-    right_vals = unpacked[1 + 1 + 8 : 1 + (1 + 8)*2]
+    left_vals = unpacked[1 : 1 + 1 + 8]  # bool + 8 floats
+    right_vals = unpacked[1 + 1 + 8 : 1 + (1 + 8) * 2]
 
+    # Pack in to hand pose object with mm as the unit
     left_hand = HandPose(*left_vals)
+    left_hand.x *= 1000.0
+    left_hand.y *= 1000.0
+    left_hand.z *= 1000.0
     right_hand = HandPose(*right_vals)
+    right_hand.x *= 1000.0
+    right_hand.y *= 1000.0
+    right_hand.z *= 1000.0
 
     return timestamp, left_hand, right_hand
+
 
 class VarjoXR3(Teleoperator):
     """
@@ -118,10 +129,7 @@ class VarjoXR3(Teleoperator):
 
     @property
     def is_connected(self) -> bool:
-        if self.socket is not None and self.socket.is_connected:
-            return True
-
-        return False
+        return bool(self.socket is not None and self.socket.is_connected)
 
     def connect(self, calibrate: bool = True) -> None:
         if self.is_connected:

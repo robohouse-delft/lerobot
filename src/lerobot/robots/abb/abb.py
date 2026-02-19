@@ -174,7 +174,7 @@ class ABB(Robot):
                 action_vals[-1] = self.prev_gripper
         elif "qx.pos" in list(action.keys())[3]:
             # Action is already in end-effector pose format [x, y, z, qx, qy, qz, qw]
-            pose = (np.array(action_vals[:3]) * 1000.0).tolist() + [
+            pose = (np.array(action_vals[:3])).tolist() + [
                 action_vals[6],
                 action_vals[3],
                 action_vals[4],
